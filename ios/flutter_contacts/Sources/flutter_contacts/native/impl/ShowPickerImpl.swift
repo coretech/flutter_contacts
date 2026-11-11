@@ -10,11 +10,16 @@ enum ShowPickerImpl {
     private static var enableIosNotes = false
 
     static func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        pendingResult = result
-        requestedProperties = Set(call.argList("properties") as [String]? ?? [])
-        enableIosNotes = call.arg("enableIosNotes", default: false)
+        let properties = Set(call.argList("properties") as [String]? ?? [])
+        let notes: Bool = call.arg("enableIosNotes", default: false)
 
+        // The statics are also read and written by the delegate callbacks on the main
+        // thread, so only touch them there.
         DispatchQueue.main.async {
+            pendingResult = result
+            requestedProperties = properties
+            enableIosNotes = notes
+
             guard let rootVC = ViewControllerUtils.rootViewController() else {
                 result(HandlerHelpers.makeError("No view controller available"))
                 pendingResult = nil

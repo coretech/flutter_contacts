@@ -7,11 +7,14 @@ enum OpenSettingsImpl {
             result(HandlerHelpers.makeError("Could not create settings URL"))
             return
         }
-        if UIApplication.shared.canOpenURL(settingsURL) {
-            UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
-            result(nil)
-        } else {
-            result(HandlerHelpers.makeError("Cannot open settings URL"))
+        // UIApplication is main-thread-only, and handle() runs on a background queue.
+        DispatchQueue.main.async {
+            if UIApplication.shared.canOpenURL(settingsURL) {
+                UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
+                result(nil)
+            } else {
+                result(HandlerHelpers.makeError("Cannot open settings URL"))
+            }
         }
     }
 }

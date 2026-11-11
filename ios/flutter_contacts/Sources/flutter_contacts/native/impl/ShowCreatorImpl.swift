@@ -8,20 +8,23 @@ enum ShowCreatorImpl {
     private static var creatorDelegate: CreatorDelegate?
 
     static func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let contactJson: Json? = call.arg("contact")
+        let newContact = contactJson.map { ContactBuilder.toCNMutableContact(Contact.fromJson($0)) } ?? CNMutableContact()
+
         // One creator at a time. The pending result and delegate are single statics, so a
         // second call would strand the first caller's Future and overwrite `creatorDelegate`
         // — and since `CNContactViewController` holds its delegate weakly, the creator
         // already on screen would lose it and never be able to complete. Reject the new call
         // rather than break the live one.
-        guard pendingResult == nil else {
-            return result(HandlerHelpers.makeError("A creator is already presented"))
-        }
-        let contactJson: Json? = call.arg("contact")
-        let newContact = contactJson.map { ContactBuilder.toCNMutableContact(Contact.fromJson($0)) } ?? CNMutableContact()
-
-        pendingResult = result
-
+        //
+        // The statics are also read and written by the delegate callbacks on the main
+        // thread, so only check and set them there.
         DispatchQueue.main.async {
+            guard pendingResult == nil else {
+                return result(HandlerHelpers.makeError("A creator is already presented"))
+            }
+            pendingResult = result
+
             guard let rootVC = ViewControllerUtils.rootViewController() else {
                 result(HandlerHelpers.makeError("No view controller available"))
                 pendingResult = nil

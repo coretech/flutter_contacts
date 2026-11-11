@@ -16,25 +16,35 @@ enum ShowEditorImpl {
         // overwrite `editorDelegate` — and since `CNContactViewController` holds its
         // delegate weakly, the editor already on screen would lose it and never be
         // able to complete. Reject the new call rather than break the live one.
-        guard pendingResult == nil else {
-            return result(HandlerHelpers.makeError("An editor is already presented"))
-        }
+        //
         // Not `HandlerHelpers.handleResult`: that replies with the block's return
         // value, which would answer the channel before the editor is even on screen.
         // The answer comes from `completeWithResult` once the user is done, so hold
         // the result like ShowCreatorImpl does.
-        let contact: CNContact
-        do {
+        //
+        // Fetch here, off the main thread, but only report a fetch error after the
+        // busy check so a second call while an editor is up still gets the busy error.
+        let fetched = Result<CNContact, Error> {
             let store = CNContactStore()
             let keys = CNContactViewController.descriptorForRequiredKeys()
-            contact = try store.unifiedContact(withIdentifier: contactId, keysToFetch: [keys])
-        } catch {
-            return result(HandlerHelpers.makeError(error.localizedDescription))
+            return try store.unifiedContact(withIdentifier: contactId, keysToFetch: [keys])
         }
 
-        pendingResult = result
-
+        // The statics are also read and written by the delegate and close handler on
+        // the main thread, so only check and set them there.
         DispatchQueue.main.async {
+            guard pendingResult == nil else {
+                return result(HandlerHelpers.makeError("An editor is already presented"))
+            }
+            let contact: CNContact
+            switch fetched {
+            case let .success(value):
+                contact = value
+            case let .failure(error):
+                return result(HandlerHelpers.makeError(error.localizedDescription))
+            }
+            pendingResult = result
+
             guard let rootVC = ViewControllerUtils.rootViewController() else {
                 result(HandlerHelpers.makeError("No view controller available"))
                 pendingResult = nil
