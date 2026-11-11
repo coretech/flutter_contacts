@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 public class FlutterContactsPlugin: NSObject, FlutterPlugin {
-    private lazy var handlers: [String: HandlerProtocol] = [
+    private let handlers: [String: HandlerProtocol] = [
         "crud": CrudHandler(),
         "accounts": AccountsHandler(),
         "groups": GroupsHandler(),
