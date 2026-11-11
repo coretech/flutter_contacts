@@ -2,6 +2,8 @@ import Flutter
 import UIKit
 
 public class FlutterContactsPlugin: NSObject, FlutterPlugin {
+    // Built eagerly on purpose: handle() reads this from DispatchQueue.global, and a lazy var is not
+    // thread-safe (data race / EXC_BAD_ACCESS).
     private let handlers: [String: HandlerProtocol] = [
         "crud": CrudHandler(),
         "accounts": AccountsHandler(),
